@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE log4j:configuration PUBLIC "-//APACHE//DTD LOG4J 1.2//EN" "log4j.dtd">
+<log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
+
+	<!-- <appender name="DB" class="org.apache.log4j.jdbc.JDBCAppender"> <param 
+		name="url" value="jdbc:oracle:thin:@10.5.101.29:1521:XE" /> <param name="driver" 
+		value="oracle.jdbc.OracleDriver" /> <param name="user" value=visitacao " 
+		/> <param name="password" value="visitacao" /> <param name="sql" value="INSERT 
+		INTO LOGS4J VALUES('%d %-5p','[%t]','%C{2}','(%F:%L)','%m%n')" /> <layout 
+		class="org.apache.log4j.PatternLayout"> <param name="ConversionPattern" value="%d 
+		%-5p [%t] %C{2} (%F:%L) - %m%n" /> </layout> </appender> -->
+
+	<appender name="LogFile" class="org.apache.log4j.DailyRollingFileAppender">
+		<param name="File" value=".\\logs\\importaVkCom-util-internal.log" />
+		<param name="DatePattern" value="yyyy-MM-dd" />
+		<param name="append" value="true" />
+		<layout class="org.apache.log4j.PatternLayout">
+			<param name="ConversionPattern" value="%d %-5p [%t] %C{2} (%F:%L) - %m%n" />
+		</layout>
+	</appender>
+
+	<appender name="STDOUT" class="org.apache.log4j.ConsoleAppender">
+		<layout class="org.apache.log4j.PatternLayout">
+			<param name="ConversionPattern" value="%d %-5p [%t] %C{2} (%F:%L) - %m%n" />
+		</layout>
+	</appender>
+
+	<!-- <logger name="log4j.rootLogger" additivity="false"> <level value="ALL" 
+		/> <appender-ref ref="DB" /> </logger> -->
+
+	<logger name="br.com.importa">
+		<level value="ALL" />
+		<appender-ref ref="LogFile" />
+	</logger>
+
+	<logger name="conect">
+		<level value="ALL" />
+		<appender-ref ref="LogFile" />
+	</logger>
+
+	<root>
+		<priority value="ALL" />
+		<appender-ref ref="STDOUT" />
+	</root>
+
+</log4j:configuration>
