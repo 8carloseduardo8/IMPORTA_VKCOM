@@ -47,7 +47,7 @@ public class Comunicador extends Integrador {
 	public static void main(String args[]) {
 		// new Comunicador(null).start();
 		try {
-			// new Comunicador(null, null).enviaPedidos();
+			new Comunicador(null, null).enviaPedidos();
 			new Comunicador(null, null).recebePedidos();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -261,7 +261,7 @@ public class Comunicador extends Integrador {
 				String situacao = rs.getString("situacao");
 
 				if (situacao.equals("FATURADO") || situacao.equals("REJEITADO") || situacao.equals("FECHADO")
-						|| situacao.equals("EXCLUIDO")) {
+						|| situacao.equals("EXCLUIDO") || situacao.equals("SEPARANDO")) {
 
 					boolean rejeitado = (situacao.equals("REJEITADO") || situacao.equals("EXCLUIDO")) == true;
 
@@ -339,6 +339,7 @@ public class Comunicador extends Integrador {
 					sql = "UPDATE GERAL.PEDIDO SET TIPO_RETORNO = 'A' WHERE NUMERO = " + Oracle.strInsert(numeroPedido);
 					con.executar(sql);
 
+					qntPedidos++;
 				}
 			} catch (Exception e) {
 				e.printStackTrace();

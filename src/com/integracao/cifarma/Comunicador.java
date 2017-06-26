@@ -53,7 +53,6 @@ public class Comunicador extends Integrador {
 			// new Comunicador().enviaPedidos();
 			// new Comunicador().recebeClientes();
 			new Comunicador().recebePedidos();
-
 			// new Comunicador().enviaManifesto();
 
 			// new Comunicador().recebeTitulos();
@@ -242,18 +241,20 @@ public class Comunicador extends Integrador {
 		else
 			c.add(Calendar.MINUTE, -30);
 
-		// c.add(Calendar.DAY_OF_YEAR, -100);
+		// c.add(Calendar.DAY_OF_YEAR, -120);
 
 		data = c.getTime();
 
-		sql = "select p.ph_pedorigem, p.ph_origem,  n.nh_emissao ph_datafat, p.ph_numnota, c.cl_cnpj, v.* from pedido_a v ";
+		sql = "select p.ph_pedclie, p.ph_pedorigem, p.ph_origem,  n.nh_emissao ph_datafat, p.ph_numnota, c.cl_cnpj, v.* from pedido_a v ";
 		sql += " left join unisys.tpdhven0001 p on v.numero = p.ph_numero ";
 		sql += " left join unisys.tcadcli0001 c on v.cliente = c.cl_codigo ";
 		sql += " left join unisys.tnfhven0001 n on v.numero = n.nh_pedido ";
 		sql += " where p.timeupd >= " + Oracle.strInsert(data);
-		// sql += " and ph_numero = 187835 ";
+		// sql += " and ph_numero = 190494 ";
 		// sql += " and ph_pedorigem > 0 ";
 		// sql += " and situacao = 'REJEITADO'";
+		// sql += " and vendedor in
+		// ('2105012','210502','182','411013','210508','171','400017438','210504','21051','210505','157')";
 		sql += " and not situacao is null ";
 		sql += " order by v.data desc";
 		rs = con.consultar(sql);
@@ -271,6 +272,7 @@ public class Comunicador extends Integrador {
 
 				ped.numero = rs.getInt("pedido_origem");
 				ped.numeroDistribuidor = rs.getInt("numero");
+				ped.numeroCliente = rs.getString("ph_pedclie");
 
 				ped.data = rs.getDate("data");
 				ped.cnpj = rs.getString("cl_cnpj");
@@ -320,8 +322,6 @@ public class Comunicador extends Integrador {
 
 				while (rsIt.next()) {
 
-					CanalProduto canProd = null;
-
 					PedidoItem it = new PedidoItem();
 					it.produto = rsIt.getString("produto");
 					Produto produto = geProdutoSubString(rsIt.getString("produto"));
@@ -330,15 +330,14 @@ public class Comunicador extends Integrador {
 						it.produtoDescricao = produto.descricao;
 					}
 
-					// CARREGA O VALOR BRUTO E O CÓDIGO DO PRODUTO DA UNIDROGAS
-					canProd = getCanalProdutoUnidrogas(it.produto);
-
-					if (canProd == null)
-						canProd = new CanalProdutoDao().getCanalProdutoExporta(canal, it.produto);
-					if (canProd == null)
-						canProd = new CanalProdutoDao().getCanalProduto(canal, it.produto);
-					if (canProd == null)
-						canProd = new CanalProdutoDao().getCanalProdutoExporta(canal, it.produto);
+					sql = "select * from unisys.tpdiven0001 ";
+					sql += " where pi_numero = " + Oracle.strInsert(rsIt.getString("pedido"));
+					sql += " and pi_produto = " + Oracle.strInsert(rsIt.getString("produto"));
+					Resultado rsPedItem = con.consultar(sql);
+					if (rsPedItem.next()) {
+						it.valorBruto = rsPedItem.getDouble("pi_valunit");
+					}
+					rsPedItem.close();
 
 					it.pedido = ped.numero;
 
@@ -352,12 +351,6 @@ public class Comunicador extends Integrador {
 						e.printStackTrace();
 					}
 
-					if (canProd != null) {
-						it.valorBruto = canProd.valorBruto;
-						it.produto = canProd.produto;
-					} else {
-						it.valorBruto = it.valorUnitario;
-					}
 					it.valorFaturado = rsIt.getDouble("valor_faturado");
 
 					// VERIFICA SE A QUANTIDADE ESTÁ DIGITADA NA TABELA DE
@@ -768,8 +761,10 @@ public class Comunicador extends Integrador {
 	private void enviaManifesto(Pedido ped) {
 
 		try {
-			if (ped.manifesto == 0)
+			if (ped.manifesto == 0) {
+				System.out.println("sem número de manifesto, saindo da rotina de envio");
 				return;
+			}
 
 			Conexao conVK = Conector.getConexaoVK();
 
@@ -780,6 +775,7 @@ public class Comunicador extends Integrador {
 			Resultado res = conVK.consultar(sql);
 			if (res.next()) {
 				res.close();
+				System.out.println("manifesto já foi enviado!");
 				return;
 			}
 			res.close();
@@ -789,9 +785,14 @@ public class Comunicador extends Integrador {
 			res = conVK.consultar(sql);
 			if (res.next()) {
 				Calendar c = Calendar.getInstance();
+				c.setTime(res.getDate("MANIFESTODATA"));
 				c.add(Calendar.DAY_OF_YEAR, 1);
-				if (res.getDate("MANIFESTODATA").getTime() >= c.getTime().getTime()) {
+				c.add(Calendar.HOUR, 12);
+				System.out.println(c.getTime());
+				System.out.println(new Date());
+				if (new Date().getTime() >= c.getTime().getTime()) {
 					res.close();
+					System.out.println("ainda não está na hroa de enviar o manifesto!");
 					return;
 				}
 			}

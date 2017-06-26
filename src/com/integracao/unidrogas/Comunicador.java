@@ -41,10 +41,10 @@ public class Comunicador extends Integrador {
 
 	public static void main(String[] args) {
 		try {
-			 new Comunicador().recebeTitulos();
-			// new ComunicadorUNIDROGAS().enviaPedidos();
+			// new Comunicador().recebeTitulos();
+			new Comunicador().enviaPedidos();
 			// new ComunicadorUNIDROGAS().recebeClientes();
-			//new ComunicadorUNIDROGAS().recebePedidos();
+			// new ComunicadorUNIDROGAS().recebePedidos();
 			// new ComunicadorUNIDROGAS().recebeDevolucoes();
 			// new ComunicadorUNIDROGAS().recebeEstoque();
 		} catch (Exception e) {
@@ -124,8 +124,8 @@ public class Comunicador extends Integrador {
 			sql += ", condicao = " + Oracle.strInsert(cPrazo);
 			sql += ", prazo = " + Oracle.strInsert(dPrazo);
 			sql += ", observacao = SUBSTR(" + Oracle.strInsert(((pedido.motivoData != null
-					? "LIBERADO POR: " + pedido.motivoUsuario + "  / MOTIVO: " + pedido.motivo + " / OBS: "
-					: "") + pedido.obs)) + ", 1,1000)";
+					? "LIBERADO POR: " + pedido.motivoUsuario + "  / MOTIVO: " + pedido.motivo + " / OBS: " : "")
+					+ pedido.obs)) + ", 1,1000)";
 			sql += ", data = " + Oracle.strInsert(new Date());
 			sql += ", tipo_origem = " + Oracle.strInsert(1);
 			sql += ", entrega = " + Oracle.strInsert(new Date());
@@ -171,10 +171,12 @@ public class Comunicador extends Integrador {
 				sql += ", comprimento = null";
 				sql += ", largura = null";
 				sql += ", altura = null";
-				if (it.qntVenda == 0)
-					sql += ", tpvenda = '301'";
-				else
+				if (it.qntVenda == 0) {
+					// sql += ", tpvenda = '301'";
+					sql += ", tpvenda = '204'";
+				} else {
 					sql += ", tpvenda = '101'";
+				}
 				sql += " where empresa = " + empresa;
 				sql += " and   filial  = " + filial;
 				sql += " and   pedido  = " + idPedido;
@@ -508,6 +510,20 @@ public class Comunicador extends Integrador {
 
 	@Override
 	public void enviaPedidos() throws Exception {
+		String sql = "";
+		sql += "UPDATE VEN_PEDIDO P ";
+		sql += " SET P.STATUS = 'PENDENTE EXPORTAÇÃO', ";
+		sql += " P.MOTIVO = 'LIBERADO AUTOMATICAMENTE', ";
+		sql += " P.MOTIVODATA = SYSDATE, ";
+		sql += " P.MOTIVOUSUARIO = 'admin' ";
+		sql += "WHERE P.NUMERO IN ( ";
+		sql += "   SELECT P.NUMERO ";
+		sql += "   FROM VIEW_PEDIDO P ";
+		sql += "   WHERE P.STATUS = 'BLOQUEIO COMERCIAL' ";
+		sql += "   HAVING SUM(P.total_liquido) >= SUM(P.total_permitido) ";
+		sql += "   GROUP BY P.NUMERO ";
+		sql += ")";
+		Conector.getConexaoVK().executar(sql);
 
 		// Conector.getConexaoVK()
 		// .executar(

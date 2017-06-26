@@ -32,10 +32,12 @@ import br.com.core.util.LogUtil;
 import br.com.core.util.TextUtil;
 import br.com.smp.vk.venda.model.Pedido;
 import br.com.smp.vk.venda.model.PedidoItem;
+import br.com.smp.vk.venda.model.Prazo;
 import br.com.smp.vk.venda.model.Produto;
 import br.com.smp.vk.venda.model.StatusPedido;
 import vendas.dao.PedidoDao;
 import vendas.dao.PedidoItemDao;
+import vendas.dao.PrazoDao;
 import vendas.dao.ProdutoDao;
 import vendas.dao.StatusPedidoDao;
 
@@ -60,7 +62,7 @@ public class Comunicador extends Integrador {
 
 	public static void main(String[] args) {
 		try {
-			//new Comunicador().enviaPedidos();
+			// new Comunicador().enviaPedidos();
 			new Comunicador().recebePedidos();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -134,6 +136,9 @@ public class Comunicador extends Integrador {
 		// fw.newLine();
 
 		// L5 - prazo negociado
+		Prazo prazo = new PrazoDao().getPrazo(pedido.prazo);
+		if (prazo != null)
+			s += prazo.codigoExporta;
 		s += ";";
 		// fw.write(s);
 		// fw.newLine();
@@ -319,9 +324,11 @@ public class Comunicador extends Integrador {
 			throw new Exception("LABORSIL: Arquivo não encontrato " + arquivo);
 		}
 		Pedido pedido = new Pedido();
-		pedido.setNumero(new Integer(arquivo.substring(41, 47)));
+		File f = new File(arquivo);
+		int numeroPedido = Integer.parseInt(f.getName().substring(5, 15));
 		PedidoDao pedidoDao = new PedidoDao();
-		pedido = pedidoDao.getPedido(pedido.getNumero());
+		pedido = pedidoDao.getPedido(numeroPedido);
+		
 		if (pedido == null) {
 			throw new Exception("LABORSIL: Pedido não encontrato");
 		}
@@ -345,7 +352,7 @@ public class Comunicador extends Integrador {
 
 					// 3 - Data de Processamento
 					dados = retorno[2];
-					pedido.setDataFaturamento(new SimpleDateFormat("yyyyMMdd").parse(dados));
+					pedido.setDataFaturamento(new SimpleDateFormat("yyyy-MM-dd").parse(dados));
 
 					// 4 - Hora Processamento
 					dados = retorno[3];
@@ -436,6 +443,7 @@ public class Comunicador extends Integrador {
 					throw new Exception("LABORSIL: Dados inválidos!");
 				}
 			} catch (Exception ex) {
+				ex.printStackTrace();
 				throw new Exception("LABORSIL: Erro ao processar retorno do pedido!");
 			}
 		}

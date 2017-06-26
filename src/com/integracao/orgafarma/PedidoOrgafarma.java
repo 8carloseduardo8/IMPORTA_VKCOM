@@ -165,7 +165,13 @@ public class PedidoOrgafarma {
 		XMLped.addContent(XMLitens);
 		XMLcapa.addContent(XMLped);
 
-		File file = new File("C:\\Atua\\" + capa.Numero + ".txt");
+		try {
+			new File("C:\\Atua\\ORGAFARMA\\").mkdirs();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		File file = new File("C:\\Atua\\ORGAFARMA\\" + capa.Numero + ".txt");
 
 		XMLOutputter xout = new XMLOutputter();
 		try {

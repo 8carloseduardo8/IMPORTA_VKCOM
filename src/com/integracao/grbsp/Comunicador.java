@@ -52,12 +52,12 @@ public class Comunicador extends Integrador {
 
 	public static void main(String[] args) {
 		try {
-			// new ComunicadorGRBSP().start();
-			// new ComunicadorGRBSP().recebeClientes();
-			// new ComunicadorGRBSP().recebeTitulos();
+			// new Comunicador().start();
+			 new Comunicador().recebeClientes();
+			// new Comunicador().recebeTitulos();
 			// new Comunicador().enviaPedidos();
-			// new ComunicadorGRBSP().recebePedidos();
-			new Comunicador().recebeEstoque();
+			// new Comunicador().recebePedidos();
+//			new Comunicador().recebeEstoque();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -413,7 +413,7 @@ public class Comunicador extends Integrador {
 
 		// TODO Auto-generated method stub
 		Calendar c = Calendar.getInstance();
-		c.add(Calendar.DAY_OF_YEAR, -1);
+		c.add(Calendar.DAY_OF_YEAR, -200);
 		Date data = c.getTime();
 
 		ClienteDao cliDao = new ClienteDao();

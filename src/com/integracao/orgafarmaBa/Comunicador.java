@@ -1,4 +1,4 @@
-package com.integracao.orgafarma;
+package com.integracao.orgafarmaBa;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -35,16 +35,16 @@ import vendas.dao.PedidoIntegracaoDao;
 
 public class Comunicador extends Integrador {
 
-	private final int canal = 6;
+	private final int canal = 31;
 
 	public FTPClient ftp = new FTPClient();
 
 	public String unidade = "3";
 	public String pastaInterna = "C:\\ATUA";
 
-	public String host = "179.107.102.172";
-	public String usuario = "cifarma";
-	public String senha = "cifarma123456";
+	public String host = "";
+	public String usuario = "";
+	public String senha = "";
 
 	public String pastaPedido = "\\entrada";
 	public String pastaNFe = "\\saida\\nota";
@@ -56,8 +56,8 @@ public class Comunicador extends Integrador {
 
 	public static void main(String argv[]) {
 		try {
-			// new Comunicador().enviaPedidos();
-			new Comunicador().recebePedidos();
+			 new Comunicador().enviaPedidos();
+//			new Comunicador().recebePedidos();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

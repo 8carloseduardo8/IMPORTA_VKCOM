@@ -52,6 +52,7 @@ public class ServletIntegradorNormal {
 
 		new com.integracao.medicamental.Comunicador(f, servletIntegradorNormal).start();
 		new com.integracao.alfamed.Comunicador(f, servletIntegradorNormal).start();
+		new com.integracao.farmaum.Comunicador(f, servletIntegradorNormal).start();
 
 		f.start();
 

@@ -1,4 +1,4 @@
-package com.integracao.alfamed;
+package com.integracao.farmaum;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -20,13 +20,12 @@ import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPReply;
 
-import vendas.dao.CanalDao;
-import vendas.dao.CanalProdutoDao;
-import vendas.dao.CanalSetorDao;
-import vendas.dao.PedidoDao;
-import vendas.dao.PedidoIntegracaoDao;
-import vendas.dao.PrazoDao;
-import vendas.dao.ProdutoDao;
+import com.integrador.Integrador;
+import com.integrador.ServletIntegradorNormal;
+import com.integrador.ServletIntegradorNormal.Finaliza;
+import com.util.Str;
+import com.util.lerXML_JAXB;
+
 import br.com.javac.v300.procnfe.TNFe.InfNFe.Det;
 import br.com.smp.vk.venda.model.Canal;
 import br.com.smp.vk.venda.model.CanalSetor;
@@ -36,54 +35,54 @@ import br.com.smp.vk.venda.model.PedidoItem;
 import br.com.smp.vk.venda.model.Prazo;
 import br.com.smp.vk.venda.model.Produto;
 import br.com.javac.v300.procnfe.TNfeProc;
-
-import com.integrador.Integrador;
-import com.integrador.ServletIntegradorNormal;
-import com.integrador.ServletIntegradorNormal.Finaliza;
-import com.util.Str;
-import com.util.lerXML_JAXB;
-
 import conect.Conector;
 import conect.Oracle;
+import vendas.dao.CanalDao;
+import vendas.dao.CanalProdutoDao;
+import vendas.dao.CanalSetorDao;
+import vendas.dao.PedidoDao;
+import vendas.dao.PedidoIntegracaoDao;
+import vendas.dao.PrazoDao;
+import vendas.dao.ProdutoDao;
 
 public class Comunicador extends Integrador {
 
-	private int canal = 28;
+	private int canal = 30;
 
 	private FTPClient ftp = new FTPClient();
 
-	public String host = "177.43.79.249";
-	// public String host = "";
-	public String usuario = "cifarma";
-	public String senha = "alfa0427";
+	public String host = "intranet.brasildistribuidora.com.br";
+	public int port = 21;
+	public String usuario = "pb.cifarma";
+	public String senha = "bbs.1234";
 
 	public String pastaPedido = "/ENVIO";
-	public String pastaNFe = "/RETORNO";
+	public String pastaNFe = "/ESPELHO";
 	public String pastaRetornoPedido = "/RETORNO";
+
+	public static String integracao = "FARMAUM";
 
 	private HashMap<String, String> motivos = new HashMap<String, String>();
 
 	public static void main(String argv[]) {
 		try {
-			new Comunicador().recebeRetornoPedido();
 			new Comunicador().enviaPedidos();
+			new Comunicador().recebePedidos();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
 	public Comunicador(Finaliza f, ServletIntegradorNormal integrador) {
-		super(f, integrador, "ALFAMED");
-		this.canal = canal;
-		iniciar();
+		super(f, integrador, integracao);
+		uniciar();
 	}
 
-	private Comunicador() {
-		this.canal = canal;
-		iniciar();
+	public Comunicador() {
+		uniciar();
 	}
 
-	public void iniciar() {
+	public void uniciar() {
 		motivos.put("01", "PROBLEMAS CADATRAIS");
 		motivos.put("02", "LIMITE DE CRÉDITO");
 		motivos.put("03", "VALOR MÍNIMO");
@@ -102,20 +101,22 @@ public class Comunicador extends Integrador {
 		motivos.put("83", "CD INCORRETO");
 		motivos.put("99", "NÃO ESPECIFICADO");
 
-		try {
-			conectar();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		conectar();
 	}
 
-	private void conectar() throws Exception {
+	private void conectar() {
 		try {
-			ftp.connect(host);
+			ftp = new FTPClient();
+			ftp.connect(host, port);
+			ftp.enterLocalPassiveMode();
+			// ftp.enterRemotePassiveMode();
 
 			// verifica se conectou com sucesso!
 			if (FTPReply.isPositiveCompletion(ftp.getReplyCode())) {
-				ftp.login(usuario, senha);
+				if (!ftp.login(usuario, senha)) {
+					System.out.println("Usuário ou senha incorretos");
+					ftp = null;
+				}
 			} else {
 				// erro ao se conectar
 				ftp.disconnect();
@@ -125,7 +126,6 @@ public class Comunicador extends Integrador {
 		} catch (Exception e) {
 			System.out.println("Ocorreu um erro: " + e);
 			e.printStackTrace();
-			throw new Exception(e);
 		}
 	}
 
@@ -133,9 +133,10 @@ public class Comunicador extends Integrador {
 
 		Canal canal = new CanalDao().getCanal(this.canal);
 
-		String codigoProjeto = "01";
+		String codigoProjeto = "00";
 
-		File file = new File("C:\\Atua\\PHL" + codigoProjeto + canal.cnpj + "_"
+		new File("C:\\Atua\\" + integracao).mkdirs();
+		File file = new File("C:\\Atua\\" + integracao + "\\PHL" + codigoProjeto + canal.cnpj + "_"
 				+ new SimpleDateFormat("YYYYMMDDHHMMSS").format(new Date()) + ".txt");
 		BufferedWriter fw = new BufferedWriter(new FileWriter(file));
 
@@ -145,7 +146,9 @@ public class Comunicador extends Integrador {
 		s = "1"; // IDENTIFICAÇÃO DO TIPO DE REGISTRO
 		s += pedido.cnpj;
 		s += "1";
-		s += Str.alinhaZeroDireita(Integer.parseInt(canSet.setorExporta) + "", 13);
+		// s += Str.alinhaZeroDireita(Integer.parseInt(canSet.setorExporta) +
+		// "", 13);
+		s += Str.alinhaZeroDireita("0", 13);
 		s += codigoProjeto;
 		fw.write(s);
 		fw.newLine();
@@ -160,7 +163,7 @@ public class Comunicador extends Integrador {
 
 		Prazo prazo = new PrazoDao().getPrazo(pedido.prazo);
 
-		String codigoPrazo = prazo.codigoExporta;
+		String codigoPrazo = prazo.codigoExporta + "";
 
 		s = "3";
 		s += "3";
@@ -219,11 +222,11 @@ public class Comunicador extends Integrador {
 		return file;
 	}
 
-	private boolean enviaPedido(File arquivo) throws IOException {
-		return enviaArquivo(pastaPedido, arquivo.getAbsolutePath());
+	private void enviaPedido(File arquivo) throws IOException {
+		enviaArquivo(pastaPedido, arquivo.getAbsolutePath());
 	}
 
-	private boolean enviaArquivo(String pasta, String arquivo) throws IOException {
+	private void enviaArquivo(String pasta, String arquivo) throws IOException {
 		// para cada arquivo informado...
 		// abre um stream com o arquivo a ser enviado
 		InputStream is = new FileInputStream(arquivo);
@@ -263,7 +266,6 @@ public class Comunicador extends Integrador {
 		ftp.storeFile(nomeArquivo, is);
 		is.close();
 		System.out.println("Arquivo " + nomeArquivo + " enviado com sucesso!");
-		return true;
 	}
 
 	@Override
@@ -271,7 +273,8 @@ public class Comunicador extends Integrador {
 
 		conectar();
 
-		// Conector.getConexaoVK().executar(
+		// Conector.getConexaoVK()
+		// .executar(
 		// "UPDATE VEN_PEDIDO P SET STATUS = 'PENDENTE EXPORTAÇÃO' WHERE STATUS
 		// = 'BLOQUEIO COMERCIAL' AND CANAL = "
 		// + canal);
@@ -292,21 +295,19 @@ public class Comunicador extends Integrador {
 				// new PedidoDao().atualizaStatus(ped);
 
 				File f = geraArquivoPedido(ped);
-				boolean pedidoEnviado = enviaPedido(f);
+				enviaPedido(f);
 
-				if (pedidoEnviado == true) {
-					// GRAVA O ARQUIVO RECEBIDO
-					PedidoIntegracao pedInt = new PedidoIntegracao();
-					pedInt.pedido = ped.numero;
-					pedInt.dataRecebimento = new Date();
-					pedInt.tipoArquivo = PedidoIntegracao.ENVIO_PEDIDO;
-					pedInt.nomeArquivo = f.getName();
-					new PedidoIntegracaoDao().salvar(pedInt);
+				// GRAVA LOG DE INTEGRACAO
+				PedidoIntegracao pedInt = new PedidoIntegracao();
+				pedInt.pedido = ped.numero;
+				pedInt.dataRecebimento = new Date();
+				pedInt.tipoArquivo = PedidoIntegracao.ENVIO_PEDIDO;
+				pedInt.nomeArquivo = f.getName();
+				new PedidoIntegracaoDao().salvar(pedInt);
 
-					System.out.println("PEDIDO ENVIADO COM SUCESSO: " + ped.numero);
-					ped.status = Pedido.EXPORTADO_FATURAMENTO;
-					new PedidoDao().atualizaStatus(ped);
-				}
+				System.out.println("PEDIDO ENVIADO COM SUCESSO: " + ped.numero);
+				ped.status = Pedido.EXPORTADO_FATURAMENTO;
+				new PedidoDao().atualizaStatus(ped);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -317,10 +318,12 @@ public class Comunicador extends Integrador {
 	@Override
 	public void recebePedidos() throws Exception {
 
+		conectar();
+
 		recebeRetornoPedido();
 
 		String pasta = pastaNFe;
-		System.out.println("BAIXANDO NOTAS FISCAIS ALFAMED");
+		System.out.println("BAIXANDO RETORNOS");
 		// ftp.mkd(pasta);
 		ftp.changeWorkingDirectory(pasta);
 		// String dirs[] = pasta.split("/");
@@ -332,16 +335,36 @@ public class Comunicador extends Integrador {
 
 		FTPFile[] files = ftp.listFiles();
 		System.out.println("ARQUIVOS A SEREM BAIXADOS: " + files.length);
-		new File("C:\\VK-FARMA\\INTEGRACAO\\ALFAMED").mkdirs();
+		new File("C:\\VK-FARMA\\INTEGRACAO\\" + integracao).mkdirs();
 
 		Canal canal = new CanalDao().getCanal(this.canal);
 
 		for (FTPFile f : files) {
 
-			if (f.isFile() && f.getName().toUpperCase().endsWith("NOT")
+			System.out.println(canal.cnpj);
+			System.out.println(f.getName().substring(5, 19));
+
+			if (f.isFile() && f.getName().toUpperCase().endsWith("XML")) {
+				System.out.println("DOWNLOAD NFE::: " + f.getName());
+				String arqDown = "C:\\VK-FARMA\\INTEGRACAO\\" + integracao + "\\" + f.getName();
+				FileOutputStream fos = new FileOutputStream(arqDown);
+				boolean download = ftp.retrieveFile(f.getName(), fos);
+				if (download) {
+					try {
+						processaNFE(arqDown);
+						ftp.deleteFile(f.getName());
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				} else {
+					System.out.println("Error in downloading file !");
+				}
+				fos.flush();
+				fos.close();
+			} else if (f.isFile() && f.getName().toUpperCase().endsWith("NOT")
 					&& f.getName().substring(5, 19).equals(canal.cnpj)) {
 				System.out.println("DOWNLOAD NOTA::: " + f.getName());
-				String arqDown = "C:\\VK-FARMA\\INTEGRACAO\\ALFAMED\\" + f.getName();
+				String arqDown = "C:\\VK-FARMA\\INTEGRACAO\\" + integracao + "\\" + f.getName();
 				FileOutputStream fos = new FileOutputStream(arqDown);
 				boolean download = ftp.retrieveFile(f.getName(), fos);
 				if (download) {
@@ -354,21 +377,16 @@ public class Comunicador extends Integrador {
 						int pedido = 0;
 						double totalFaturado = 0;
 						while ((s = br.readLine()) != null) {
-							if (s.length() == 0) {
-								// LINHA EM BRANCO
-							} else if (s.startsWith("1")) {
+							if (s.startsWith("1")) {
 								pedido = Integer.parseInt(s.substring(30, 37));
 								ped = new PedidoDao().getPedido(pedido);
-								if (ped != null) {
-									for (PedidoItem it : ped.itens) {
-										it.qntFaturada = 0;
-									}
-								} else {
-									break;
+								System.out.println(pedido);
+
+								for (PedidoItem it : ped.itens) {
+									it.qntFaturada = 0;
 								}
-								System.out.println("PEDIDO: " + pedido);
+
 							} else if (s.startsWith("2")) {
-								System.out.println("CLIENTE: " + s.substring(23, 37));
 								ped.dataFaturamento = new SimpleDateFormat("ddMMyyyy").parse(s.substring(15, 23));
 								ped.numeroNota = Integer.parseInt(s.substring(37, 43));
 
@@ -378,7 +396,7 @@ public class Comunicador extends Integrador {
 								int qtdeAtendida = Integer.parseInt(s.substring(21, 25));
 								Double valorUnitario = Double.parseDouble(s.substring(60, 68)) / 100;
 
-								// System.out.println(valorUnitario);
+								System.out.println(valorUnitario);
 
 								Produto produto = new ProdutoDao().getProdutoEAN(ean);
 								for (PedidoItem it : ped.itens) {
@@ -393,7 +411,7 @@ public class Comunicador extends Integrador {
 
 						if (ped != null) {
 
-							// GRAVA O ARQUIVO RECEBIDO
+							// GRAVA LOG DE INTEGRACAO
 							PedidoIntegracao pedInt = new PedidoIntegracao();
 							pedInt.pedido = ped.numero;
 							pedInt.dataRecebimento = new Date();
@@ -420,19 +438,23 @@ public class Comunicador extends Integrador {
 	}
 
 	public void recebeRetornoPedido() throws Exception {
-		ftp.changeWorkingDirectory(pastaRetornoPedido);
+
+		ftp.changeWorkingDirectory("RETORNO");
 
 		FTPFile[] files = ftp.listFiles();
 		System.out.println("ARQUIVOS A SEREM BAIXADOS: " + files.length);
-		new File("C:\\VK-FARMA\\INTEGRACAO\\ALFAMED\\RETORNOPEDIDO\\").mkdirs();
+		new File("C:\\VK-FARMA\\INTEGRACAO\\" + integracao + "\\RETORNOPEDIDO\\").mkdirs();
 
 		Canal canal = new CanalDao().getCanal(this.canal);
 
 		for (FTPFile f : files) {
+
+			System.out.println(f.getName().substring(5, 19));
+
 			if (f.isFile() && f.getName().toUpperCase().endsWith("RET")
 					&& f.getName().substring(5, 19).equals(canal.cnpj)) {
 				System.out.println("DOWNLOAD RETORNO REDIDO::: " + f.getName());
-				String arqDown = "C:\\VK-FARMA\\INTEGRACAO\\ALFAMED\\RETORNOPEDIDO\\" + f.getName();
+				String arqDown = "C:\\VK-FARMA\\INTEGRACAO\\" + integracao + "\\RETORNOPEDIDO\\" + f.getName();
 				FileOutputStream fos = new FileOutputStream(arqDown);
 				boolean download = ftp.retrieveFile(f.getName(), fos);
 				if (download) {
@@ -450,12 +472,7 @@ public class Comunicador extends Integrador {
 								ped = new PedidoDao().getPedido(pedido);
 								System.out.println(pedido);
 							} else if (s.startsWith("2")) {
-								try {
-									ped.dataRecebimento = new SimpleDateFormat("ddMMyyyyHHmmss")
-											.parse(s.substring(1, 14));
-								} catch (Exception e) {
-									e.printStackTrace();
-								}
+
 							} else if (s.startsWith("3")) {
 								String ean = s.substring(1, 14);
 
@@ -467,21 +484,15 @@ public class Comunicador extends Integrador {
 								System.out.println(retorno);
 
 								Produto produto = new ProdutoDao().getProdutoEAN(ean);
-								if (ped != null && ped.itens != null) {
-									for (PedidoItem it : ped.itens) {
-										if (produto != null) {
-											if (it.produto.equals(produto.codigo)) {
-												it.qntFaturada = qtdeAtendida;
-											}
-										}
+								for (PedidoItem it : ped.itens) {
+									if (it.produto.equals(produto.codigo)) {
+										it.qntFaturada = qtdeAtendida;
 									}
 								}
 
 								if (ped != null && pedido != 0) {
 									if (ped.status.equals(Pedido.FATURADO) == false) {
-										if (motivo.equals("12")) {
-											// PEDIDO JÁ ENVIADO , NÃO FAZ NADA
-										} else if (motivo.equals("00")) {
+										if (motivo.equals("00") || motivo.equals("12")) {
 											ped.status = Pedido.RECEBIDO_FATURAMENTO;
 										} else {
 											ped.status = Pedido.REJEITADO + " " + motivos.get(motivo);
@@ -498,7 +509,7 @@ public class Comunicador extends Integrador {
 								}
 							}
 
-							// GRAVA O ARQUIVO RECEBIDO
+							// GRAVA LOG DE INTEGRACAO
 							PedidoIntegracao pedInt = new PedidoIntegracao();
 							pedInt.pedido = ped.numero;
 							pedInt.dataRecebimento = new Date();
@@ -615,6 +626,14 @@ public class Comunicador extends Integrador {
 			pedido.valorBruto = totalBruto;
 			pedido.valorFaturado = totalFaturado;
 			pedido.valorLiquido = totalLiquido;
+
+			// GRAVA LOG DE INTEGRACAO
+			PedidoIntegracao pedInt = new PedidoIntegracao();
+			pedInt.pedido = pedido.numero;
+			pedInt.dataRecebimento = new Date();
+			pedInt.tipoArquivo = PedidoIntegracao.RETORNO_NOTA;
+			pedInt.nomeArquivo = new File(arq).getName();
+			new PedidoIntegracaoDao().salvar(pedInt);
 
 			new PedidoDao().Salvar(pedido);
 			new PedidoDao().atualizaStatus(pedido);

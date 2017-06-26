@@ -7,14 +7,12 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.io.InputStream;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -33,24 +31,22 @@ import com.util.lerXML_JAXB;
 
 import br.com.core.util.TextUtil;
 import br.com.importa.vkcom.core.LogUtil;
-import br.com.javac.v300.procnfe.TNfeProc;
 import br.com.javac.v300.procnfe.TNFe.InfNFe.Det;
+import br.com.javac.v300.procnfe.TNfeProc;
 import br.com.smp.vk.venda.model.CanalProduto;
 import br.com.smp.vk.venda.model.CanalSetor;
 import br.com.smp.vk.venda.model.Pedido;
+import br.com.smp.vk.venda.model.PedidoIntegracao;
 import br.com.smp.vk.venda.model.PedidoItem;
 import br.com.smp.vk.venda.model.Prazo;
 import br.com.smp.vk.venda.model.Produto;
-import br.com.smp.vk.venda.model.StatusPedido;
-import conect.Conector;
-import conect.Oracle;
 import vendas.dao.CanalProdutoDao;
 import vendas.dao.CanalSetorDao;
 import vendas.dao.PedidoDao;
+import vendas.dao.PedidoIntegracaoDao;
 import vendas.dao.PedidoItemDao;
 import vendas.dao.PrazoDao;
 import vendas.dao.ProdutoDao;
-import vendas.dao.StatusPedidoDao;
 
 /**
  * Interface de integração com a distribuidora ONE.
@@ -80,20 +76,16 @@ public class Comunicador extends Integrador {
 
 	public static void main(String argv[]) {
 		try {
-			//new Comunicador().enviaPedidos();
-			//new Comunicador().recebePedidos();
-			//new Comunicador().processaArquivos();
-			new Comunicador().processaArquivosNota();
+			new Comunicador().enviaPedidos();
+			// new Comunicador().recebePedidos();
+			// new Comunicador().processaArquivos();
+			// new Comunicador().processaArquivosNota();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
 	public Comunicador() {
-	}
-
-	public Comunicador(Finaliza f, ServletIntegradorNormal integrador) {
-		super(f, integrador, "ONE");
 	}
 
 	private static void conectar() {
@@ -119,6 +111,10 @@ public class Comunicador extends Integrador {
 		}
 	}
 
+	public Comunicador(Finaliza f, ServletIntegradorNormal integrador) {
+		super(f, integrador, "ONE");
+	}
+
 	private static File geraArquivoPedido(Pedido pedido) throws Exception {
 
 		LogUtil.info(Comunicador.class, "ONE: Gerando arquivo de pedido");
@@ -127,7 +123,7 @@ public class Comunicador extends Integrador {
 		DateTimeFormatter formatData = DateTimeFormatter.ofPattern("yyyyMMdd");
 
 		LocalTime hora = LocalTime.now();
-		DateTimeFormatter formatHora = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM);
+		DateTimeFormatter formatHora = DateTimeFormatter.ofPattern("HH:mm");
 
 		File file = new File("C:\\ATUA\\ONE\\PEDems_" + pedido.cnpj.trim() + "_" + data.format(formatData)
 				+ hora.format(formatHora).replace(":", "") + ".TXT");
@@ -235,7 +231,7 @@ public class Comunicador extends Integrador {
 			s = "2";
 			s += TextUtil.padRight(String.valueOf(i.pedido), 12, " ");
 			s += Str.alinhaZeroDireita(prod.ean, 13);
-			s += Str.alinhaZeroDireita(String.valueOf(i.qntVenda), 5);
+			s += Str.alinhaZeroDireita(String.valueOf(i.qntVenda+ i.qntBonificacao), 5);
 
 			String percDesconto = new DecimalFormat("0.00")
 					.format(((((i.qntBonificacao + i.qntVenda) * i.valorBruto) - (i.qntVenda * i.valorUnitario))
@@ -321,6 +317,15 @@ public class Comunicador extends Integrador {
 				LogUtil.info(Comunicador.class, "ONE: Pedido enviado com sucesso: " + ped.numero);
 				ped.status = Pedido.EXPORTADO_FATURAMENTO;
 				ped.dataEnvio = new Date();
+				
+				// GRAVA O ARQUIVO RECEBIDO
+				PedidoIntegracao pedInt = new PedidoIntegracao();
+				pedInt.pedido = ped.numero;
+				pedInt.dataRecebimento = new Date();
+				pedInt.tipoArquivo = PedidoIntegracao.ENVIO_PEDIDO;
+				pedInt.nomeArquivo = f.getName();
+				new PedidoIntegracaoDao().salvar(pedInt);
+				
 				new PedidoDao().atualizaStatus(ped);
 				new PedidoDao().atualizadaDataEnvio(ped);
 			} catch (Exception e) {
@@ -334,7 +339,7 @@ public class Comunicador extends Integrador {
 	public void recebePedidos() throws Exception {
 		processaArquivos();
 	}
-	
+
 	private void processaArquivosNota() throws Exception {
 		conectar();
 
@@ -398,7 +403,7 @@ public class Comunicador extends Integrador {
 					if (f.getName().contains("NOTems")) {
 						processaArquivoNFE(arqDown);
 					}
-					
+
 					if (f.getName().contains("3517")) {
 						processaNFE(arqDown);
 					}
@@ -516,16 +521,18 @@ public class Comunicador extends Integrador {
 
 					// Motivo pelo qual o pedido não foi atendido
 					retorno = dados.substring(56, 58);
-					//StatusPedidoDao statusPedidoDao = new StatusPedidoDao();
-					//StatusPedido statusPedido = statusPedidoDao.getStatusPedido(retorno);
-					/*if (statusPedido == null) {
-						throw new Exception("ONE: Status do pedido não encontrato");
-					}*/
+					// StatusPedidoDao statusPedidoDao = new StatusPedidoDao();
+					// StatusPedido statusPedido =
+					// statusPedidoDao.getStatusPedido(retorno);
+					/*
+					 * if (statusPedido == null) { throw new
+					 * Exception("ONE: Status do pedido não encontrato"); }
+					 */
 					pedido.setStatus(Pedido.EXPORTADO_FATURAMENTO);
 					if (!retorno.equals("50")) {
 						pedido.setStatus(Pedido.REJEITADO);
 					}
-					
+
 					pedido.setDataRecebimento(new SimpleDateFormat("yyyyMMdd HHmmss").parse(dataHoraRecebimento));
 					pedidoDao.atualizaStatus(pedido);
 					pedidoDao.atualizadaDataRecebimento(pedido);
@@ -761,16 +768,17 @@ public class Comunicador extends Integrador {
 			}
 		}
 	}
-	
+
 	private void processaNFE(String arq) throws Exception {
-		
+
 		TNfeProc nfe = lerXML_JAXB.getNFe(arq);
 		if (nfe != null) {
 			LogUtil.info(Comunicador.class, "ONE: Lendo nota fiscal.");
 			// BUSCA O PEDIDO ORIGEM - SISTEMA VENDAS
 			int numeroPedido = 0;
 			try {
-				LogUtil.info(Comunicador.class, "ONE: Buscando pedido: " + nfe.getNFe().getInfNFe().getDet().get(0).getProd().getXPed());
+				LogUtil.info(Comunicador.class,
+						"ONE: Buscando pedido: " + nfe.getNFe().getInfNFe().getDet().get(0).getProd().getXPed());
 				numeroPedido = Integer.parseInt(nfe.getNFe().getInfNFe().getDet().get(0).getProd().getXPed());
 			} catch (Exception e) {
 				throw new Exception("ONE: Erro ao processar nota!");
@@ -781,7 +789,8 @@ public class Comunicador extends Integrador {
 			pedido = pedidoDao.getPedido(numeroPedido);
 			pedido.canal = canal;
 			pedido.numero = numeroPedido;
-			//pedido.numeroDistribuidor = Integer.parseInt(nfe.getNFe().getInfNFe().getIde().getNNF());
+			// pedido.numeroDistribuidor =
+			// Integer.parseInt(nfe.getNFe().getInfNFe().getIde().getNNF());
 			pedido.numeroNota = Integer.parseInt(nfe.getNFe().getInfNFe().getIde().getNNF());
 			pedido.cnpj = nfe.getNFe().getInfNFe().getDest().getCNPJ();
 			pedido.clienteRazao = nfe.getNFe().getInfNFe().getDest().getXNome();

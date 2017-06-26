@@ -51,33 +51,35 @@ public class Comunicador extends Integrador {
 
 	private FTPClient ftp = new FTPClient();
 
-	public String host = "";
+	public String host = "179.106.65.190";
 	// public String host = "";
-	public String usuario = "";
-	public String senha = "";
+	public String usuario = "cifarma";
+	public String senha = "mix@cifarma";
 
-	public String pastaPedido = "/ENVIO";
-	public String pastaNFe = "/RETORNO";
-	public String pastaRetornoPedido = "/RETORNO";
+	public String pastaPedido = "/Ped";
+	public String pastaNFe = "/Ret";
+	public String pastaRetornoPedido = "/Ret";
 
 	private HashMap<String, String> motivos = new HashMap<String, String>();
 
 	public static void main(String argv[]) {
 		try {
 			new Comunicador().enviaPedidos();
+			new Comunicador().recebePedidos();
+			// new
+			// Comunicador().processaArquivoRetornoPedido("C:\\ATUA\\MIX\\PHL0106104356000151_2017041011604555.RET",
+			// "PHL0106104356000151_2017041011604555.RET");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
 	public Comunicador(Finaliza f, ServletIntegradorNormal integrador) {
-		super(f, integrador, "JORGE BATISTA");
-		this.canal = canal;
+		super(f, integrador, "MIX");
 		iniciar();
 	}
 
 	private Comunicador() {
-		this.canal = canal;
 		iniciar();
 	}
 
@@ -101,7 +103,7 @@ public class Comunicador extends Integrador {
 		motivos.put("99", "NÃO ESPECIFICADO");
 
 		try {
-			// conectar();
+			conectar();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -158,7 +160,7 @@ public class Comunicador extends Integrador {
 
 		Prazo prazo = new PrazoDao().getPrazo(pedido.prazo);
 
-		String codigoPrazo = "V" + new DecimalFormat("000").format(Integer.parseInt(prazo.codigoExporta));
+		String codigoPrazo = new DecimalFormat("0000").format(Integer.parseInt(prazo.codigoExporta));
 
 		s = "3";
 		s += "3";
@@ -319,7 +321,7 @@ public class Comunicador extends Integrador {
 		recebeRetornoPedido();
 
 		String pasta = pastaNFe;
-		System.out.println("BAIXANDO NOTAS FISCAIS JORGE BATISTA");
+		System.out.println("BAIXANDO NOTAS FISCAIS MIX");
 		// ftp.mkd(pasta);
 		ftp.changeWorkingDirectory(pasta);
 		// String dirs[] = pasta.split("/");
@@ -331,7 +333,7 @@ public class Comunicador extends Integrador {
 
 		FTPFile[] files = ftp.listFiles();
 		System.out.println("ARQUIVOS A SEREM BAIXADOS: " + files.length);
-		new File("C:\\VK-FARMA\\INTEGRACAO\\JORGE BATISTA").mkdirs();
+		new File("C:\\VK-FARMA\\INTEGRACAO\\MIX").mkdirs();
 
 		Canal canal = new CanalDao().getCanal(this.canal);
 
@@ -340,74 +342,12 @@ public class Comunicador extends Integrador {
 			if (f.isFile() && f.getName().toUpperCase().endsWith("NOT")
 					&& f.getName().substring(5, 19).equals(canal.cnpj)) {
 				System.out.println("DOWNLOAD NOTA::: " + f.getName());
-				String arqDown = "C:\\VK-FARMA\\INTEGRACAO\\JORGE BATISTA\\" + f.getName();
+				String arqDown = "C:\\VK-FARMA\\INTEGRACAO\\MIX\\" + f.getName();
 				FileOutputStream fos = new FileOutputStream(arqDown);
 				boolean download = ftp.retrieveFile(f.getName(), fos);
 				if (download) {
-					try {
-						// abre o pedido
-						BufferedReader br = new BufferedReader(new FileReader(arqDown));
-						String s;
-
-						Pedido ped = null;
-						int pedido = 0;
-						double totalFaturado = 0;
-						while ((s = br.readLine()) != null) {
-							if (s.length() == 0) {
-								// LINHA EM BRANCO
-							} else if (s.startsWith("1")) {
-								pedido = Integer.parseInt(s.substring(30, 37));
-								ped = new PedidoDao().getPedido(pedido);
-								if (ped != null) {
-									for (PedidoItem it : ped.itens) {
-										it.qntFaturada = 0;
-									}
-								} else {
-									break;
-								}
-								System.out.println("PEDIDO: " + pedido);
-							} else if (s.startsWith("2")) {
-								System.out.println("CLIENTE: " + s.substring(23, 37));
-								ped.dataFaturamento = new SimpleDateFormat("ddMMyyyy").parse(s.substring(15, 23));
-								ped.numeroNota = Integer.parseInt(s.substring(37, 43));
-
-							} else if (s.startsWith("5")) {
-								String ean = s.substring(1, 14);
-
-								int qtdeAtendida = Integer.parseInt(s.substring(21, 25));
-								Double valorUnitario = Double.parseDouble(s.substring(60, 68)) / 100;
-
-								// System.out.println(valorUnitario);
-
-								Produto produto = new ProdutoDao().getProdutoEAN(ean);
-								for (PedidoItem it : ped.itens) {
-									if (it.produto.equals(produto.codigo)) {
-										it.qntFaturada = qtdeAtendida;
-										it.valorFaturado = qtdeAtendida * valorUnitario;
-										totalFaturado += it.valorFaturado;
-									}
-								}
-							}
-						}
-
-						if (ped != null) {
-
-							// GRAVA O ARQUIVO RECEBIDO
-							PedidoIntegracao pedInt = new PedidoIntegracao();
-							pedInt.pedido = ped.numero;
-							pedInt.dataRecebimento = new Date();
-							pedInt.tipoArquivo = PedidoIntegracao.RETORNO_NOTA;
-							pedInt.nomeArquivo = f.getName();
-							new PedidoIntegracaoDao().salvar(pedInt);
-
-							ped.setValorFaturado(totalFaturado);
-							new PedidoDao().Salvar(ped);
-							ped.status = Pedido.FATURADO;
-							new PedidoDao().atualizaStatus(ped);
-							ftp.deleteFile(f.getName());
-						}
-					} catch (Exception e) {
-						e.printStackTrace();
+					if (processaArquivoNota(arqDown, f.getName())) {
+						ftp.deleteFile(f.getName());
 					}
 				} else {
 					System.out.println("Error in downloading file !");
@@ -418,12 +358,80 @@ public class Comunicador extends Integrador {
 		}
 	}
 
+	public boolean processaArquivoNota(String arqDown, String ftpArquivoNome) {
+		try {
+			// abre o pedido
+			BufferedReader br = new BufferedReader(new FileReader(arqDown));
+			String s;
+			Pedido ped = null;
+			int pedido = 0;
+			double totalFaturado = 0;
+			while ((s = br.readLine()) != null) {
+				if (s.length() == 0) {
+					// LINHA EM BRANCO
+				} else if (s.startsWith("1")) {
+					pedido = Integer.parseInt(s.substring(30, 37));
+					ped = new PedidoDao().getPedido(pedido);
+					if (ped != null) {
+						for (PedidoItem it : ped.itens) {
+							it.qntFaturada = 0;
+						}
+					} else {
+						break;
+					}
+					System.out.println("PEDIDO: " + pedido);
+				} else if (s.startsWith("2")) {
+					System.out.println("CLIENTE: " + s.substring(23, 37));
+					ped.dataFaturamento = new SimpleDateFormat("ddMMyyyy").parse(s.substring(15, 23));
+					ped.numeroNota = Integer.parseInt(s.substring(37, 43));
+
+				} else if (s.startsWith("5")) {
+					String ean = s.substring(1, 14);
+
+					int qtdeAtendida = Integer.parseInt(s.substring(21, 25));
+					Double valorUnitario = Double.parseDouble(s.substring(60, 68)) / 100;
+
+					// System.out.println(valorUnitario);
+
+					Produto produto = new ProdutoDao().getProdutoEAN(ean);
+					for (PedidoItem it : ped.itens) {
+						if (it.produto.equals(produto.codigo)) {
+							it.qntFaturada = qtdeAtendida;
+							it.valorFaturado = qtdeAtendida * valorUnitario;
+							totalFaturado += it.valorFaturado;
+						}
+					}
+				}
+			}
+			br.close();
+
+			if (ped != null) {
+				// GRAVA O ARQUIVO RECEBIDO
+				PedidoIntegracao pedInt = new PedidoIntegracao();
+				pedInt.pedido = ped.numero;
+				pedInt.dataRecebimento = new Date();
+				pedInt.tipoArquivo = PedidoIntegracao.RETORNO_NOTA;
+				pedInt.nomeArquivo = ftpArquivoNome;
+				new PedidoIntegracaoDao().salvar(pedInt);
+
+				ped.setValorFaturado(totalFaturado);
+				new PedidoDao().Salvar(ped);
+				ped.status = Pedido.FATURADO;
+				new PedidoDao().atualizaStatus(ped);
+				return true;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return false;
+	}
+
 	public void recebeRetornoPedido() throws Exception {
 		ftp.changeWorkingDirectory(pastaRetornoPedido);
 
 		FTPFile[] files = ftp.listFiles();
 		System.out.println("ARQUIVOS A SEREM BAIXADOS: " + files.length);
-		new File("C:\\VK-FARMA\\INTEGRACAO\\JORGE BATISTA\\RETORNOPEDIDO\\").mkdirs();
+		new File("C:\\VK-FARMA\\INTEGRACAO\\MIX\\RETORNOPEDIDO\\").mkdirs();
 
 		Canal canal = new CanalDao().getCanal(this.canal);
 
@@ -431,87 +439,12 @@ public class Comunicador extends Integrador {
 			if (f.isFile() && f.getName().toUpperCase().endsWith("RET")
 					&& f.getName().substring(5, 19).equals(canal.cnpj)) {
 				System.out.println("DOWNLOAD RETORNO REDIDO::: " + f.getName());
-				String arqDown = "C:\\VK-FARMA\\INTEGRACAO\\JORGE BATISTA\\RETORNOPEDIDO\\" + f.getName();
+				String arqDown = "C:\\VK-FARMA\\INTEGRACAO\\MIX\\RETORNOPEDIDO\\" + f.getName();
 				FileOutputStream fos = new FileOutputStream(arqDown);
 				boolean download = ftp.retrieveFile(f.getName(), fos);
 				if (download) {
-					try {
-						// abre o pedido
-						BufferedReader br = new BufferedReader(new FileReader(arqDown));
-						String s;
-
-						Pedido ped = null;
-						int pedido = 0;
-						int qntAtendidaTotal = 0;
-						while ((s = br.readLine()) != null) {
-							if (s.startsWith("1")) {
-								pedido = Integer.parseInt(s.substring(16, 23));
-								ped = new PedidoDao().getPedido(pedido);
-								System.out.println(pedido);
-							} else if (s.startsWith("2")) {
-								try {
-									ped.dataRecebimento = new SimpleDateFormat("ddMMyyyyHHmmss")
-											.parse(s.substring(1, 14));
-								} catch (Exception e) {
-									e.printStackTrace();
-								}
-							} else if (s.startsWith("3")) {
-								String ean = s.substring(1, 14);
-
-								int qtdeAtendida = Integer.parseInt(s.substring(14, 18));
-								qntAtendidaTotal += qtdeAtendida;
-								int qtdeNaoAtendida = Integer.parseInt(s.substring(18, 22));
-								String motivo = s.substring(22, 24);
-								String retorno = s.substring(24, 25);
-								System.out.println(retorno);
-
-								Produto produto = new ProdutoDao().getProdutoEAN(ean);
-								if (ped != null && ped.itens != null) {
-									for (PedidoItem it : ped.itens) {
-										if (produto != null) {
-											if (it.produto.equals(produto.codigo)) {
-												it.qntFaturada = qtdeAtendida;
-											}
-										}
-									}
-								}
-
-								if (ped != null && pedido != 0) {
-									if (ped.status.equals(Pedido.FATURADO) == false) {
-										if (motivo.equals("12")) {
-											// PEDIDO JÁ ENVIADO , NÃO FAZ NADA
-										} else if (motivo.equals("00")) {
-											ped.status = Pedido.RECEBIDO_FATURAMENTO;
-										} else {
-											ped.status = Pedido.REJEITADO + " " + motivos.get(motivo);
-										}
-									}
-								}
-							}
-						}
-
-						if (ped != null) {
-							if (ped.status.equals(Pedido.FATURADO) == false) {
-								if (qntAtendidaTotal > 0) {
-									ped.status = Pedido.RECEBIDO_FATURAMENTO;
-								}
-							}
-
-							// GRAVA O ARQUIVO RECEBIDO
-							PedidoIntegracao pedInt = new PedidoIntegracao();
-							pedInt.pedido = ped.numero;
-							pedInt.dataRecebimento = new Date();
-							pedInt.tipoArquivo = PedidoIntegracao.RETORNO_PEDIDO;
-							pedInt.nomeArquivo = f.getName();
-							new PedidoIntegracaoDao().salvar(pedInt);
-
-							new PedidoDao().Salvar(ped);
-							new PedidoDao().atualizaStatus(ped);
-						}
-
+					if (processaArquivoRetornoPedido(arqDown, f.getName()) == true) {
 						ftp.deleteFile(f.getName());
-					} catch (Exception e) {
-						e.printStackTrace();
 					}
 				} else {
 					System.out.println("Error in downloading file !");
@@ -521,6 +454,87 @@ public class Comunicador extends Integrador {
 			}
 		}
 
+	}
+
+	public boolean processaArquivoRetornoPedido(String arqDown, String ftpArquivoNome) {
+		try {
+			// abre o pedido
+			BufferedReader br = new BufferedReader(new FileReader(arqDown));
+			String s;
+
+			Pedido ped = null;
+			int pedido = 0;
+			int qntAtendidaTotal = 0;
+			while ((s = br.readLine()) != null) {
+				if (s.startsWith("1")) {
+					pedido = Integer.parseInt(s.substring(16, 23));
+					ped = new PedidoDao().getPedido(pedido);
+					System.out.println(pedido);
+				} else if (s.startsWith("2")) {
+					try {
+						ped.dataRecebimento = new SimpleDateFormat("ddMMyyyyHHmmss").parse(s.substring(1, 14));
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				} else if (s.startsWith("3")) {
+					String ean = s.substring(1, 14);
+
+					int qtdeAtendida = Integer.parseInt(s.substring(14, 18));
+					qntAtendidaTotal += qtdeAtendida;
+					int qtdeNaoAtendida = Integer.parseInt(s.substring(18, 22));
+					String motivo = s.substring(22, 24);
+					String retorno = s.substring(24, 25);
+					System.out.println(retorno);
+
+					Produto produto = new ProdutoDao().getProdutoEAN(ean);
+					if (ped != null && ped.itens != null) {
+						for (PedidoItem it : ped.itens) {
+							if (produto != null) {
+								if (it.produto.equals(produto.codigo)) {
+									it.qntFaturada = qtdeAtendida;
+								}
+							}
+						}
+					}
+
+					if (ped != null && pedido != 0) {
+						if (ped.status.equals(Pedido.FATURADO) == false) {
+							if (motivo.equals("12")) {
+								// PEDIDO JÁ ENVIADO , NÃO FAZ NADA
+							} else if (motivo.equals("00")) {
+								ped.status = Pedido.RECEBIDO_FATURAMENTO;
+							} else {
+								ped.status = Pedido.REJEITADO + " " + motivos.get(motivo);
+							}
+						}
+					}
+				}
+			}
+			br.close();
+
+			if (ped != null) {
+				if (ped.status.equals(Pedido.FATURADO) == false) {
+					if (qntAtendidaTotal > 0) {
+						ped.status = Pedido.RECEBIDO_FATURAMENTO;
+					}
+				}
+
+				// GRAVA O ARQUIVO RECEBIDO
+				PedidoIntegracao pedInt = new PedidoIntegracao();
+				pedInt.pedido = ped.numero;
+				pedInt.dataRecebimento = new Date();
+				pedInt.tipoArquivo = PedidoIntegracao.RETORNO_PEDIDO;
+				pedInt.nomeArquivo = ftpArquivoNome;
+				new PedidoIntegracaoDao().salvar(pedInt);
+
+				new PedidoDao().Salvar(ped);
+				new PedidoDao().atualizaStatus(ped);
+				return true;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return false;
 	}
 
 	@Override
