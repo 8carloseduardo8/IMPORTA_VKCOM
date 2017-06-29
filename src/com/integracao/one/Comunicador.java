@@ -77,9 +77,9 @@ public class Comunicador extends Integrador {
 	public static void main(String argv[]) {
 		try {
 			new Comunicador().enviaPedidos();
-			// new Comunicador().recebePedidos();
-			// new Comunicador().processaArquivos();
-			// new Comunicador().processaArquivosNota();
+			new Comunicador().recebePedidos();
+			new Comunicador().processaArquivos();
+			new Comunicador().processaArquivosNota();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -231,7 +231,7 @@ public class Comunicador extends Integrador {
 			s = "2";
 			s += TextUtil.padRight(String.valueOf(i.pedido), 12, " ");
 			s += Str.alinhaZeroDireita(prod.ean, 13);
-			s += Str.alinhaZeroDireita(String.valueOf(i.qntVenda+ i.qntBonificacao), 5);
+			s += Str.alinhaZeroDireita(String.valueOf(i.qntVenda + i.qntBonificacao), 5);
 
 			String percDesconto = new DecimalFormat("0.00")
 					.format(((((i.qntBonificacao + i.qntVenda) * i.valorBruto) - (i.qntVenda * i.valorUnitario))
@@ -317,7 +317,7 @@ public class Comunicador extends Integrador {
 				LogUtil.info(Comunicador.class, "ONE: Pedido enviado com sucesso: " + ped.numero);
 				ped.status = Pedido.EXPORTADO_FATURAMENTO;
 				ped.dataEnvio = new Date();
-				
+
 				// GRAVA O ARQUIVO RECEBIDO
 				PedidoIntegracao pedInt = new PedidoIntegracao();
 				pedInt.pedido = ped.numero;
@@ -325,7 +325,7 @@ public class Comunicador extends Integrador {
 				pedInt.tipoArquivo = PedidoIntegracao.ENVIO_PEDIDO;
 				pedInt.nomeArquivo = f.getName();
 				new PedidoIntegracaoDao().salvar(pedInt);
-				
+
 				new PedidoDao().atualizaStatus(ped);
 				new PedidoDao().atualizadaDataEnvio(ped);
 			} catch (Exception e) {

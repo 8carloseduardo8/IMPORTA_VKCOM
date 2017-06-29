@@ -62,8 +62,8 @@ public class Comunicador extends Integrador {
 
 	public static void main(String[] args) {
 		try {
-			// new Comunicador().enviaPedidos();
-			new Comunicador().recebePedidos();
+			new Comunicador().enviaPedidos();
+			// new Comunicador().recebePedidos();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -110,6 +110,7 @@ public class Comunicador extends Integrador {
 		LocalTime hora = LocalTime.now();
 		DateTimeFormatter formatHora = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM);
 
+		new File("C:\\ATUA\\LABORSIL").mkdirs();
 		File file = new File("C:\\ATUA\\LABORSIL\\PEDIDO_" + TextUtil.padLeft(String.valueOf(pedido.numero), 10, "0")
 				+ "_" + cnpjCifarma + "_CIF" + ".PED");
 		BufferedWriter fw = new BufferedWriter(new FileWriter(file));
@@ -292,7 +293,6 @@ public class Comunicador extends Integrador {
 
 	@Override
 	public void enviaPedidos() throws Exception {
-
 		conectar();
 
 		// CARREGA TODOS OS PEDIDO QUE ESTÃO LIBERADOS PARA EXPORTAÇÃO
@@ -302,6 +302,7 @@ public class Comunicador extends Integrador {
 		for (Pedido ped : pedidos) {
 			try {
 				File f = geraArquivoPedido(ped);
+				System.out.println(f.getAbsolutePath());
 				enviaPedido(f);
 				LogUtil.info(Comunicador.class, "LABORSIL: Pedido enviado com sucesso: " + ped.numero);
 				ped.status = Pedido.EXPORTADO_FATURAMENTO;
@@ -312,7 +313,6 @@ public class Comunicador extends Integrador {
 				e.printStackTrace();
 			}
 		}
-
 	}
 
 	private static void processaArquivoNota(String arquivo) throws Exception {
@@ -328,7 +328,7 @@ public class Comunicador extends Integrador {
 		int numeroPedido = Integer.parseInt(f.getName().substring(5, 15));
 		PedidoDao pedidoDao = new PedidoDao();
 		pedido = pedidoDao.getPedido(numeroPedido);
-		
+
 		if (pedido == null) {
 			throw new Exception("LABORSIL: Pedido não encontrato");
 		}

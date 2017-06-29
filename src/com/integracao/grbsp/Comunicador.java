@@ -413,7 +413,7 @@ public class Comunicador extends Integrador {
 
 		// TODO Auto-generated method stub
 		Calendar c = Calendar.getInstance();
-		c.add(Calendar.DAY_OF_YEAR, -200);
+		c.add(Calendar.DAY_OF_YEAR, -1);
 		Date data = c.getTime();
 
 		ClienteDao cliDao = new ClienteDao();
